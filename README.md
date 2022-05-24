@@ -18,6 +18,6 @@ I’m Bob Terhune, a software engineer from Portland, Oregon.
 #### You can find me at [LinkedIn](https://www.linkedin.com/in/bob-terhune-910a9311) or [League Page](http://bobterhune.com/baseball/2020/)
 
 ## GitHub Stats
-[![Top Langs](https://github-readme-stats.vercel.app/api/top-langs/?username=bobterhune3&layout=compact)](https://github.com/anuraghazra/github-readme-stats)
+[![Top Langs](https://github-readme-stats.vercel.app/api/top-langs/?username=bobterhune3&layout=compact)](https://github.com/bobterhune3/github-readme-stats)
 
 <img align="center" src="https://github-readme-stats.vercel.app/api?username=bobterhune3&theme=light" />
