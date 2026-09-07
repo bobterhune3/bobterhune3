@@ -1,0 +1,17 @@
+{
+  "name": "bobterhune3 profile README",
+  "install": "bash .cursor/install.sh",
+  "terminals": [
+    {
+      "name": "readme-preview",
+      "command": "$HOME/.local/bin/grip README.md 0.0.0.0:6419",
+      "description": "Live GitHub-accurate preview of README.md served at http://localhost:6419"
+    }
+  ],
+  "ports": [
+    {
+      "name": "readme-preview",
+      "port": 6419
+    }
+  ]
+}
