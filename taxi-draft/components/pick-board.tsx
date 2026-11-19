@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { FILTERS, headshotUrl } from "@/src/lib/positions";
 import type { Board, PlayerCard } from "@/src/lib/types";
@@ -22,7 +22,7 @@ function ink(hex: string): string {
 
 function Head({ mlbid, name }: { mlbid: string; name: string }) {
   const letters = name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase();
-  return <img className="head" alt="" src={headshotUrl(mlbid)} onError={(event) => { event.currentTarget.replaceWith(Object.assign(document.createElement("div"), { className: "head", textContent: letters })); }} />;
+  return <img className="head" alt="" draggable={false} src={headshotUrl(mlbid)} onError={(event) => { event.currentTarget.replaceWith(Object.assign(document.createElement("div"), { className: "head", textContent: letters })); }} />;
 }
 
 export function PickBoard({ initial }: { initial: Board }) {
@@ -35,6 +35,7 @@ export function PickBoard({ initial }: { initial: Board }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const draggingId = useRef("");
   const searching = q.trim().length >= 3;
 
   async function load(next = { filter, q, page }) {
@@ -53,7 +54,7 @@ export function PickBoard({ initial }: { initial: Board }) {
   });
 
   function choose(player: PlayerCard) {
-    if (board.clock.closed || board.clock.finished || !board.clock.started) return;
+    if (board.clock.closed || board.clock.finished) return;
     setSelected(player);
     setError("");
   }
@@ -117,12 +118,13 @@ export function PickBoard({ initial }: { initial: Board }) {
           <div className="composer-body">
             <div
               className={selected ? "slot filled" : "slot"}
-              onDragOver={(event) => { event.preventDefault(); event.currentTarget.classList.add("over"); }}
+              onDragEnter={(event) => { event.preventDefault(); }}
+              onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; event.currentTarget.classList.add("over"); }}
               onDragLeave={(event) => event.currentTarget.classList.remove("over")}
               onDrop={(event) => {
                 event.preventDefault();
                 event.currentTarget.classList.remove("over");
-                const id = event.dataTransfer.getData("text/plain");
+                const id = event.dataTransfer.getData("text/plain") || draggingId.current;
                 const player = board.players.find((item) => item.mlbid === id);
                 if (player) choose(player);
               }}
@@ -173,8 +175,16 @@ export function PickBoard({ initial }: { initial: Board }) {
                 tabIndex={0}
                 className={selected?.mlbid === player.mlbid ? "card selected" : "card"}
                 draggable
-                onDragStart={(event) => { event.dataTransfer.setData("text/plain", player.mlbid); document.body.classList.add("dragging"); }}
-                onDragEnd={() => document.body.classList.remove("dragging")}
+                onDragStart={(event) => {
+                  draggingId.current = player.mlbid;
+                  event.dataTransfer.effectAllowed = "copy";
+                  event.dataTransfer.setData("text/plain", player.mlbid);
+                  document.body.classList.add("dragging");
+                }}
+                onDragEnd={() => {
+                  document.body.classList.remove("dragging");
+                  window.setTimeout(() => { draggingId.current = ""; }, 50);
+                }}
                 onClick={() => choose(player)}
                 onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); choose(player); } }}
               >

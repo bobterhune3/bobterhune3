@@ -93,6 +93,7 @@ input[type="checkbox"], input[type="file"] { width: auto; padding: 0; background
 .card.selected { border-color: rgba(228, 177, 90, 0.9); box-shadow: inset 0 0 0 1px rgba(228, 177, 90, 0.9); }
 .shot, .head {
   width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; object-fit: cover; background: #243044; font-weight: 700;
+  -webkit-user-drag: none; user-select: none;
 }
 .name-line { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .name, .pick-name { font-weight: 700; letter-spacing: -0.02em; }
