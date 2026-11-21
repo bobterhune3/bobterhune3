@@ -15,6 +15,26 @@ async function call(path: string, passphrase: string, body: unknown) {
   return data;
 }
 
+function managersFrom(teams: TeamRow[]): { name: string; email: string }[] {
+  const order: string[] = [];
+  const email = new Map<string, string>();
+  for (const team of teams) {
+    const name = team.manager.trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    if (!email.has(key)) {
+      order.push(key);
+      email.set(key, team.email);
+    } else if (!email.get(key) && team.email) {
+      email.set(key, team.email);
+    }
+  }
+  return order.map((key) => ({
+    name: teams.find((team) => team.manager.trim().toLowerCase() === key)?.manager.trim() ?? key,
+    email: email.get(key) ?? "",
+  }));
+}
+
 export function SettingsPanel() {
   const [passphrase, setPassphrase] = useState("");
   const [settings, setSettings] = useState<SettingsPayload | null>(null);
@@ -37,6 +57,16 @@ export function SettingsPanel() {
   function updateTeam(abbr: string, patch: Partial<TeamRow>) {
     setSettings((current) => current && ({ ...current, teams: current.teams.map((team) => team.abbr === abbr ? { ...team, ...patch } : team) }));
   }
+
+  function setManagerEmail(name: string, email: string) {
+    const key = name.trim().toLowerCase();
+    setSettings((current) => current && ({
+      ...current,
+      teams: current.teams.map((team) => team.manager.trim().toLowerCase() === key ? { ...team, email } : team),
+    }));
+  }
+
+  const managers = settings ? managersFrom(settings.teams) : [];
 
   function move(index: number, direction: -1 | 1) {
     setSettings((current) => {
@@ -123,13 +153,23 @@ export function SettingsPanel() {
                 <label className="search">American rounds<input disabled={settings.frozen} value={settings.roundsAmerican} onChange={(event) => setSettings({ ...settings, roundsAmerican: Number(event.target.value) })} /></label>
                 <label className="search">Federal rounds<input disabled={settings.frozen} value={settings.roundsFederal} onChange={(event) => setSettings({ ...settings, roundsFederal: Number(event.target.value) })} /></label>
               </div>
-              <p className="hint">{settings.frozen ? "Order, leagues, and round caps are frozen after pick 1." : "One email per manager is copied onto each of that manager's teams when you save."}</p>
+              <p className="hint">{settings.frozen ? "Order, leagues, and round caps are frozen after pick 1." : "Set each manager's email once. Save copies it onto every team he runs."}</p>
               <p className="hint">Stats cache: {settings.cached} cached, {settings.missing} missing.</p>
               <div className="dialog-actions">
                 <button type="button" className="primary" onClick={() => void save()}>Save</button>
                 <button type="button" className="ghost" onClick={() => void start()}>Start draft</button>
                 <button type="button" className="ghost" onClick={() => void call("/api/cache", passphrase, { passphrase }).then(() => load()).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : "Refresh failed."))}>Refresh MLB cache</button>
               </div>
+            </section>
+            <section className="panel" style={{ padding: 16 }}>
+              <h2>Managers</h2>
+              <p className="hint">One address for each manager. It is used for every team he runs.</p>
+              {managers.map((manager) => (
+                <label key={manager.name} className="manager-row">
+                  <span>{manager.name}</span>
+                  <input aria-label={`${manager.name} email`} type="email" value={manager.email} onChange={(event) => setManagerEmail(manager.name, event.target.value)} placeholder="Email" />
+                </label>
+              ))}
             </section>
             <section className="panel" style={{ padding: 16 }}>
               <h2>Teams</h2>
@@ -139,7 +179,6 @@ export function SettingsPanel() {
                   <strong>{team.abbr}</strong>
                   <input aria-label={`${team.abbr} name`} value={team.name} onChange={(event) => updateTeam(team.abbr, { name: event.target.value })} />
                   <input aria-label={`${team.abbr} manager`} disabled={settings.frozen} value={team.manager} onChange={(event) => updateTeam(team.abbr, { manager: event.target.value })} />
-                  <input aria-label={`${team.abbr} email`} value={team.email} onChange={(event) => updateTeam(team.abbr, { email: event.target.value })} placeholder="Email" />
                   <select aria-label={`${team.abbr} league`} disabled={settings.frozen} value={team.league} onChange={(event) => updateTeam(team.abbr, { league: event.target.value })}>
                     <option value="">League</option>
                     <option>National</option>

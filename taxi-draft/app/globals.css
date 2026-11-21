@@ -133,7 +133,8 @@ input[type="checkbox"], input[type="file"] { width: auto; padding: 0; background
 .error { color: #ffb4b4; margin: 0; }
 .settings { max-width: 1100px; margin: 0 auto; padding: 16px 22px 40px; display: flex; flex-direction: column; gap: 16px; }
 .team-row, .inline { display: grid; gap: 8px; align-items: center; }
-.team-row { grid-template-columns: 28px 72px 1.4fr 0.8fr 1.2fr 140px 1fr auto; }
+.team-row { grid-template-columns: 28px 72px 1.4fr 0.8fr 140px 1fr auto; }
+.manager-row { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 8px; align-items: center; margin-top: 8px; }
 .rounds { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .mail-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
 @media (min-width: 901px) { .rail summary { pointer-events: none; } }
