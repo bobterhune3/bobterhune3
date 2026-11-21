@@ -19,20 +19,21 @@ export function firstName(manager: string): string {
 }
 
 export function messageFor(slot: Slot, history: PickRow[], pageUrl: string, recipient: string): { subject: string; text: string } {
+  const picks = history.slice().sort((a, b) => a.pick - b.pick);
+  const latest = picks.at(-1);
   const subject = `${slot.team.manager}'s turn to pick in the Taxi Squad Draft`;
   const lines = [
-    `Welcome, ${firstName(recipient)}`,
+    `${firstName(recipient)},`,
     "",
+    ...(latest ? [`${latest.team} (${latest.manager}) picked: ${latest.name}, ${latest.pos}`, ""] : []),
+    `Now its ${slot.team.manager}'s turn: ${slot.team.name}.`,
     `Pick ${slot.pick}, Round ${slot.round}`,
+    "",
+    "To access draft go here...",
     pageUrl,
     "",
-    `${slot.team.manager}'s turn. ${slot.team.name}.`,
-    "",
-    history.length ? "Picks so far" : "No picks yet.",
-    ...history
-      .slice()
-      .sort((a, b) => a.pick - b.pick)
-      .map((pick) => `${pick.pick}. ${pick.team}, ${pick.manager}, ${pick.name}, ${pick.pos}`),
+    "Picks so far",
+    ...picks.map((pick) => `${pick.pick}. ${pick.team}, ${pick.manager}, ${pick.name}, ${pick.pos}`),
   ];
   return { subject, text: lines.join("\n") };
 }
