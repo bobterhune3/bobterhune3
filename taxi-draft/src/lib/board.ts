@@ -2,7 +2,7 @@ import { sql, tx } from "./db";
 import { ready } from "./seed";
 import { schedule, type Slot, type SlotTeam } from "./order";
 import { displayName, posInfo } from "./positions";
-import { messageFor, sendMail } from "./mail";
+import { messageFor, onePerManager, sendMail } from "./mail";
 import { fetchStats, mergeStats } from "./mlb";
 import { decodeRoster, playersFromCsv } from "./roster";
 import type { Board, Clock, PickRow, PlayerCard, SettingsPayload, SplitLine, TeamRow } from "./types";
@@ -269,8 +269,10 @@ function pageUrl(request: Request): string {
 }
 
 async function recipients(): Promise<string[]> {
-  const rows = await sql<{ email: string }>("select email from teams where draft = 'taxi' and email <> ''");
-  return [...new Set(rows.map((row) => row.email.trim()).filter(Boolean))];
+  const rows = await sql<{ manager: string; email: string }>(
+    "select manager, email from teams where draft = 'taxi' and email <> '' order by sort_order, abbr",
+  );
+  return onePerManager(rows);
 }
 
 async function recordMail(pickNumber: number, error: string): Promise<void> {

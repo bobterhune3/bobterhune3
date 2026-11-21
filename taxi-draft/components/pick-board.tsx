@@ -81,7 +81,18 @@ export function PickBoard({ initial }: { initial: Board }) {
   }
 
   const clock = board.clock;
-  const canPick = Boolean(selected) && clock.started && !clock.closed && !clock.finished && board.passphraseConfigured && passphrase.length > 0;
+  const canPick = Boolean(selected) && clock.started && !clock.closed && !clock.finished && board.passphraseConfigured && passphrase.trim().length > 0;
+  const pickHold = clock.closed
+    ? "The draft is closed."
+    : clock.finished
+      ? "The draft is complete."
+      : !clock.started
+        ? "Start the draft in Settings. Pick stays off until then."
+        : !selected
+          ? "Put a player in the slot."
+          : passphrase.trim().length === 0
+            ? "Type the shared passphrase."
+            : "";
 
   return (
     <div className="app">
@@ -151,12 +162,13 @@ export function PickBoard({ initial }: { initial: Board }) {
             <label className="search"><span>Passphrase</span><input type="password" value={passphrase} onChange={(event) => setPassphrase(event.target.value)} autoComplete="current-password" /></label>
             {!board.passphraseConfigured ? <p className="hint">Add DRAFT_PASSPHRASE before anyone can pick.</p> : null}
             <button type="button" className="primary" disabled={!canPick} onClick={() => { setError(""); setOpen(true); }}>Pick</button>
+            {pickHold ? <p className="hint">{pickHold}</p> : null}
             <ol className="steps">
               <li>Drag a player into the slot, or select a row.</li>
               <li>Press Pick.</li>
               <li>Confirm the team, manager, and player.</li>
             </ol>
-            <p className="fine">Confirm saves the pick. Email is sent only when Gmail is configured.</p>
+            <p className="fine">Confirm saves the pick. Each manager gets one email when Gmail is configured.</p>
           </div>
         </section>
         <section className="panel" aria-label="Available players">
