@@ -111,14 +111,22 @@ input[type="checkbox"], input[type="file"] { width: auto; padding: 0; background
 .pager { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px 12px; border-top: 1px solid var(--line); }
 .pager button { background: #0e131c; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px; padding: 6px 10px; font-size: 13px; font-weight: 650; }
 .pager button:disabled { opacity: 0.4; cursor: not-allowed; }
+.rail { overflow: hidden; }
 .rail summary { list-style: none; }
 .rail summary::-webkit-details-marker { display: none; }
 .rail-note { margin: 0; padding: 0 14px 10px; color: var(--muted); font-size: 12px; }
-.pick-row {
-  display: grid; grid-template-columns: 22px 36px 36px minmax(0, 1fr); gap: 8px; align-items: center;
+.rail-picks[open] { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.rail-picks[open] .rail-list { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.rail-next { flex: 0 0 auto; border-top: 1px solid var(--line); }
+.rail-next .rail-list { overflow: visible; }
+.pick-row, .next-row {
+  display: grid; gap: 8px; align-items: center;
   padding: 8px; border-radius: 12px; background: #1a2130; border: 1px solid rgba(255, 255, 255, 0.06);
 }
+.pick-row { grid-template-columns: 22px 36px 36px minmax(0, 1fr); }
+.next-row { grid-template-columns: 22px 36px minmax(0, 1fr); }
 .pick-num { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.team-logo { width: 36px; height: 36px; object-fit: contain; display: block; }
 .tmark { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 700; }
 .pick-row .head { width: 36px; height: 36px; border-radius: 8px; font-size: 12px; }
 .pick-pos { color: var(--muted); font-size: 12px; }
@@ -137,13 +145,17 @@ input[type="checkbox"], input[type="file"] { width: auto; padding: 0; background
 .manager-row { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 8px; align-items: center; margin-top: 8px; }
 .rounds { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .mail-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
-@media (min-width: 901px) { .rail summary { pointer-events: none; } }
+@media (min-width: 901px) {
+  .app { height: 100vh; overflow: hidden; }
+  .rail summary { pointer-events: none; }
+}
 @media (max-width: 1100px) { .card { grid-template-columns: 44px minmax(0, 1fr); } .splits { grid-column: 1 / -1; } .team-row { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 900px) {
   .topbar { position: sticky; top: 0; z-index: 5; }
   .turn, .meta { flex-direction: column; align-items: flex-start; text-align: left; }
   h1 { font-size: 28px; }
   .board { display: flex; flex-direction: column; }
-  .list, .rail-list { overflow: visible; }
+  .rail { overflow: visible; }
+  .list, .rail-list, .rail-next .rail-list { overflow: visible; }
   .rail summary { cursor: pointer; }
 }

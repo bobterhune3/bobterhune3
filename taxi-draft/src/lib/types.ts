@@ -24,6 +24,14 @@ export type PickRow = {
   pos: string;
 };
 
+export type UpcomingPick = {
+  pick: number;
+  round: number;
+  abbr: string;
+  team: string;
+  manager: string;
+};
+
 export type Clock = {
   closed: boolean;
   started: boolean;
@@ -52,6 +60,7 @@ export type Board = {
   clock: Clock;
   players: PlayerCard[];
   picks: PickRow[];
+  upcoming: UpcomingPick[];
   mailProblem: boolean;
 };
 

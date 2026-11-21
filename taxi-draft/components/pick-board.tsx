@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { mlbLogoUrl } from "@/src/lib/logos";
 import { FILTERS, headshotUrl } from "@/src/lib/positions";
 import type { Board, PlayerCard } from "@/src/lib/types";
 
@@ -18,6 +19,29 @@ function ink(hex: string): string {
   const g = (n >> 8) & 255;
   const b = n & 255;
   return 0.299 * r + 0.587 * g + 0.114 * b > 160 ? "#1a1408" : "#fff";
+}
+
+function TeamLogo({ abbr, name }: { abbr: string; name: string }) {
+  const src = mlbLogoUrl(abbr);
+  const color = MARK[abbr] || "#334155";
+  if (!src) return <div className="tmark" style={{ background: color, color: ink(color) }} title={name}>{abbr}</div>;
+  return (
+    <img
+      className="team-logo"
+      alt={name}
+      title={name}
+      src={src}
+      onError={(event) => {
+        const mark = document.createElement("div");
+        mark.className = "tmark";
+        mark.title = name;
+        mark.textContent = abbr;
+        mark.style.background = color;
+        mark.style.color = ink(color);
+        event.currentTarget.replaceWith(mark);
+      }}
+    />
+  );
 }
 
 function Head({ mlbid, name }: { mlbid: string; name: string }) {
@@ -226,17 +250,32 @@ export function PickBoard({ initial }: { initial: Board }) {
             <button type="button" disabled={page >= board.pageCount} onClick={() => void load({ filter, q, page: page + 1 })}>Next</button>
           </div>
         </section>
-        <aside className="panel rail" aria-label="Picks so far">
-          <details open>
+        <aside className="panel rail" aria-label="Draft order">
+          <details className="rail-picks" open>
             <summary><span className="panel-title">Picks so far</span><span className="count">{board.picks.length}</span></summary>
             <p className="rail-note">Newest first</p>
             <div className="rail-list">
-              {board.picks.map((pick) => (
+              {board.picks.length === 0 ? <div className="empty">No picks yet.</div> : board.picks.map((pick) => (
                 <article key={pick.pick} className="pick-row">
                   <div className="pick-num">{pick.pick}</div>
-                  <div className="tmark" style={{ background: MARK[pick.abbr] || "#334", color: ink(MARK[pick.abbr] || "#334155") }}>{pick.abbr}</div>
+                  <TeamLogo abbr={pick.abbr} name={pick.team} />
                   <Head mlbid={pick.mlbid} name={pick.name} />
                   <div><div className="pick-name">{pick.name}</div><div className="pick-pos">{pick.pos}</div></div>
+                </article>
+              ))}
+            </div>
+          </details>
+          <details className="rail-next" open>
+            <summary><span className="panel-title">Next picks</span><span className="count">{board.upcoming.length}</span></summary>
+            <div className="rail-list">
+              {board.upcoming.length === 0 ? <div className="empty">No picks left.</div> : board.upcoming.map((slot) => (
+                <article key={slot.pick} className="next-row">
+                  <div className="pick-num">{slot.pick}</div>
+                  <TeamLogo abbr={slot.abbr} name={slot.team} />
+                  <div>
+                    <div className="pick-name">{slot.team}</div>
+                    <div className="pick-pos">{slot.manager} · Round {slot.round}</div>
+                  </div>
                 </article>
               ))}
             </div>

@@ -5,7 +5,7 @@ import { displayName, posInfo } from "./positions";
 import { draftPageUrl, messageFor, onePerManager, sendMail } from "./mail";
 import { fetchStats, mergeStats } from "./mlb";
 import { decodeRoster, playersFromCsv } from "./roster";
-import type { Board, Clock, PickRow, PlayerCard, SettingsPayload, SplitLine, TeamRow } from "./types";
+import type { Board, Clock, PickRow, PlayerCard, SettingsPayload, SplitLine, TeamRow, UpcomingPick } from "./types";
 import { passphraseConfigured } from "./auth";
 
 type Settings = {
@@ -125,6 +125,16 @@ async function pickedRows(list: TeamRecord[]): Promise<PickRow[]> {
   });
 }
 
+function upcomingPicks(slots: Slot[], made: number): UpcomingPick[] {
+  return slots.slice(made, made + 5).map((slot) => ({
+    pick: slot.pick,
+    round: slot.round,
+    abbr: slot.team.abbr,
+    team: slot.team.name,
+    manager: slot.team.manager,
+  }));
+}
+
 function clockFor(row: Settings, slots: Slot[], made: number, list: TeamRecord[]): Clock {
   const closed = row.active !== "taxi";
   const current = slots[made];
@@ -241,6 +251,7 @@ export async function getBoard(input: { q: string; filter: string; page: number 
     clock: clockFor(row, slots, made, list),
     players: slice.map(card),
     picks: madeRows,
+    upcoming: upcomingPicks(slots, made),
     mailProblem: num(mail[0]?.n) > 0,
   };
 }
