@@ -6,9 +6,23 @@ export function mailConfigured(): boolean {
   return Boolean(process.env.GMAIL_USER?.trim() && process.env.GMAIL_APP_PASSWORD?.trim());
 }
 
-export function messageFor(slot: Slot, history: PickRow[], pageUrl: string): { subject: string; text: string } {
+const DRAFT_PAGE = "https://nodicedraft.apps.grok.bot/";
+
+export function draftPageUrl(): string {
+  const configured = process.env.DRAFT_PUBLIC_URL?.trim();
+  if (!configured) return DRAFT_PAGE;
+  return configured.endsWith("/") ? configured : `${configured}/`;
+}
+
+export function firstName(manager: string): string {
+  return manager.trim().split(/\s+/)[0] || manager.trim();
+}
+
+export function messageFor(slot: Slot, history: PickRow[], pageUrl: string, recipient: string): { subject: string; text: string } {
   const subject = `${slot.team.manager}'s turn to pick in the Taxi Squad Draft`;
   const lines = [
+    `Welcome, ${firstName(recipient)}`,
+    "",
     `Pick ${slot.pick}, Round ${slot.round}`,
     pageUrl,
     "",
@@ -23,10 +37,10 @@ export function messageFor(slot: Slot, history: PickRow[], pageUrl: string): { s
   return { subject, text: lines.join("\n") };
 }
 
-export function onePerManager(rows: { manager: string; email: string }[]): string[] {
+export function onePerManager(rows: { manager: string; email: string }[]): { manager: string; email: string }[] {
   const seenManagers = new Set<string>();
   const seenEmails = new Set<string>();
-  const out: string[] = [];
+  const out: { manager: string; email: string }[] = [];
   for (const row of rows) {
     const manager = row.manager.trim().toLowerCase();
     const email = row.email.trim();
@@ -34,7 +48,7 @@ export function onePerManager(rows: { manager: string; email: string }[]): strin
     if (!manager || !email.includes("@") || seenManagers.has(manager) || seenEmails.has(emailKey)) continue;
     seenManagers.add(manager);
     seenEmails.add(emailKey);
-    out.push(email);
+    out.push({ manager: row.manager.trim(), email });
   }
   return out;
 }

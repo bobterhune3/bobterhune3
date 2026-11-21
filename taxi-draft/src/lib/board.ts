@@ -2,7 +2,7 @@ import { sql, tx } from "./db";
 import { ready } from "./seed";
 import { schedule, type Slot, type SlotTeam } from "./order";
 import { displayName, posInfo } from "./positions";
-import { messageFor, onePerManager, sendMail } from "./mail";
+import { draftPageUrl, messageFor, onePerManager, sendMail } from "./mail";
 import { fetchStats, mergeStats } from "./mlb";
 import { decodeRoster, playersFromCsv } from "./roster";
 import type { Board, Clock, PickRow, PlayerCard, SettingsPayload, SplitLine, TeamRow } from "./types";
@@ -260,15 +260,11 @@ function cleanLogo(value: string): string {
   }
 }
 
-function pageUrl(request: Request): string {
-  const configured = process.env.DRAFT_PUBLIC_URL?.trim();
-  if (configured) return configured.replace(/\/$/, "");
-  const proto = request.headers.get("x-forwarded-proto") ?? "https";
-  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "";
-  return `${proto}://${host}`;
+function pageUrl(): string {
+  return draftPageUrl();
 }
 
-async function recipients(): Promise<string[]> {
+async function recipients(): Promise<{ manager: string; email: string }[]> {
   const rows = await sql<{ manager: string; email: string }>(
     "select manager, email from teams where draft = 'taxi' and email <> '' order by sort_order, abbr",
   );
@@ -283,12 +279,18 @@ async function recordMail(pickNumber: number, error: string): Promise<void> {
   );
 }
 
-async function sendForSlot(slot: Slot | undefined, history: PickRow[], request: Request, logPick: number): Promise<string> {
+async function sendForSlot(slot: Slot | undefined, history: PickRow[], _request: Request, logPick: number): Promise<string> {
   if (!slot) return "";
   const already = await sql<{ error: string }>("select error from email_log where draft = 'taxi' and pick_number = $1", [logPick]);
   if (already[0] && already[0].error === "") return "";
-  const note = messageFor(slot, history, pageUrl(request));
-  const error = await sendMail(await recipients(), note.subject, note.text);
+  const link = pageUrl();
+  const errors: string[] = [];
+  for (const person of await recipients()) {
+    const note = messageFor(slot, history, link, person.manager);
+    const error = await sendMail([person.email], note.subject, note.text);
+    if (error) errors.push(error);
+  }
+  const error = errors.join(" ").slice(0, 300);
   await recordMail(logPick, error);
   return error;
 }
