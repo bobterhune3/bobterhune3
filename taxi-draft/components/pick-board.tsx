@@ -133,8 +133,12 @@ export function PickBoard({ initial }: { initial: Board }) {
             </div>
           ) : (
             <>
-              <div>
-                <h1>{clock.manager}, {clock.team}</h1>
+              <div className="current">
+                <p className="current-label">Current Pick:</p>
+                <div className="current-line">
+                  {clock.abbr ? <TeamLogo abbr={clock.abbr} name={clock.team} /> : null}
+                  <h1>{clock.manager}, {clock.team}</h1>
+                </div>
                 <p className="next-line">{clock.endsAfter ? "The draft ends after this pick." : `Next pick, ${clock.nextManager}, ${clock.nextTeam}`}</p>
               </div>
               <div className="meta">

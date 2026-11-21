@@ -32,6 +32,9 @@ a { color: var(--gold); }
 .brand-name { font-weight: 700; letter-spacing: -0.03em; }
 .brand-name span { font-weight: 500; color: var(--muted); margin-left: 8px; }
 .turn { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; }
+.current-label { margin: 0 0 6px; color: var(--gold); font-size: 13px; font-weight: 700; }
+.current-line { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.current-line .team-logo, .current-line .tmark { width: 52px; height: 52px; flex: none; }
 h1 { margin: 0; font-size: 34px; line-height: 1.05; font-weight: 700; letter-spacing: -0.035em; }
 .next-line { margin: 6px 0 0; font-size: 16px; color: #c5d0e0; }
 .meta { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
