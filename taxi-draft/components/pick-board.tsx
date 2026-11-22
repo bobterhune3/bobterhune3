@@ -185,9 +185,13 @@ export function PickBoard({ initial }: { initial: Board }) {
                 </div>
               )}
             </div>
-            <label className="search"><span>Search</span><input value={q} onChange={(event) => { setQ(event.target.value); setPage(1); void load({ filter, q: event.target.value, page: 1 }); }} placeholder="Search players" autoComplete="off" /></label>
+            <form className="search-form" role="search" autoComplete="off" onSubmit={(event) => event.preventDefault()}>
+              <label className="search"><span>Search</span><input type="search" name="player-search" value={q} onChange={(event) => { setQ(event.target.value); setPage(1); void load({ filter, q: event.target.value, page: 1 }); }} placeholder="Search players" autoComplete="off" autoCapitalize="off" spellCheck={false} enterKeyHint="search" aria-label="Search players" /></label>
+            </form>
             <p className="hint">Filters the list after 3 letters.</p>
-            <label className="search"><span>Passphrase</span><input type="password" value={passphrase} onChange={(event) => setPassphrase(event.target.value)} autoComplete="current-password" /></label>
+            <form className="search-form" autoComplete="off" onSubmit={(event) => event.preventDefault()}>
+              <label className="search"><span>Passphrase</span><input type="password" name="draft-passphrase" value={passphrase} onChange={(event) => setPassphrase(event.target.value)} autoComplete="off" /></label>
+            </form>
             {!board.passphraseConfigured ? <p className="hint">Add DRAFT_PASSPHRASE before anyone can pick.</p> : null}
             <button type="button" className="primary" disabled={!canPick} onClick={() => { setError(""); setOpen(true); }}>Pick</button>
             {pickHold ? <p className="hint">{pickHold}</p> : null}
