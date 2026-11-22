@@ -3,6 +3,24 @@ import path from "node:path";
 import { sql } from "./db";
 import { playersFromCsv } from "./roster";
 
+export async function applyHands(): Promise<void> {
+  const file = JSON.parse(await readFile(path.join(process.cwd(), "data", "hands.json"), "utf8")) as Record<string, string>;
+  const entries = Object.entries(file).filter((entry): entry is [string, "L" | "R" | "S"] => entry[1] === "L" || entry[1] === "R" || entry[1] === "S");
+  for (let i = 0; i < entries.length; i += 80) {
+    const chunk = entries.slice(i, i + 80);
+    const values: unknown[] = [];
+    const tuples = chunk.map(([id, hand], index) => {
+      values.push(id, hand);
+      return `($${index * 2 + 1}::text, $${index * 2 + 2}::text)`;
+    });
+    await sql(
+      `update players as p set bats = v.hand from (values ${tuples.join(", ")}) as v(mlbid, hand) where p.draft = 'taxi' and p.mlbid = v.mlbid and p.bats = ''`,
+      values,
+    );
+  }
+  await sql("update players set bats = 'R' where draft = 'taxi' and bats = ''");
+}
+
 const TEAMS: [string, string, string][] = [
   ["ANM", "Anaheim Angels", "Marshal"],
   ["AZB", "Arizona Diamondbacks", "Bob"],
@@ -81,4 +99,5 @@ async function prepare(): Promise<void> {
       );
     }
   }
+  await applyHands();
 }

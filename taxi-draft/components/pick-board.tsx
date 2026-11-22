@@ -231,10 +231,10 @@ export function PickBoard({ initial }: { initial: Board }) {
                 <Head mlbid={player.mlbid} name={player.name} />
                 <div>
                   <div className="name-line">
-                    <span className="name">{player.name}</span>
+                    <span className="name">{player.name} <span className="hand">({player.bats})</span></span>
                     <span className={player.kind === "P" ? "pos pitch" : "pos"}>{player.pos}</span>
-                    <span className="pt">{player.timeLabel} {player.playingTime}</span>
                   </div>
+                  <p className="season-line">{player.timeLabel} {player.playingTime || "—"}</p>
                   {player.rating ? <p className="rating">{player.rating}</p> : null}
                   {player.field ? <p className="field">{player.field}</p> : null}
                 </div>
@@ -264,7 +264,7 @@ export function PickBoard({ initial }: { initial: Board }) {
                   <div className="pick-num">{pick.pick}</div>
                   <TeamLogo abbr={pick.abbr} name={pick.team} />
                   <Head mlbid={pick.mlbid} name={pick.name} />
-                  <div><div className="pick-name">{pick.name}</div><div className="pick-pos">{pick.pos}</div></div>
+                  <div><div className="pick-name">{pick.name} ({pick.bats})</div><div className="pick-pos">{pick.pos}</div></div>
                 </article>
               ))}
             </div>
@@ -294,7 +294,7 @@ export function PickBoard({ initial }: { initial: Board }) {
             <dl className="facts">
               <div><dt>Team</dt><dd>{clock.team}</dd></div>
               <div><dt>Manager</dt><dd>{clock.manager}</dd></div>
-              <div><dt>Player</dt><dd>{selected.name}, {selected.pos}</dd></div>
+              <div><dt>Player</dt><dd>{selected.name} ({selected.bats}), {selected.pos}</dd></div>
             </dl>
             {error ? <p className="error">{error}</p> : <p className="fine">Confirm updates the shared draft.</p>}
             <div className="dialog-actions">

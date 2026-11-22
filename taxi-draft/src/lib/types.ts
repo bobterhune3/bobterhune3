@@ -3,6 +3,7 @@ export type SplitLine = { avg: string; ops: string; hr: string };
 export type PlayerCard = {
   mlbid: string;
   name: string;
+  bats: "L" | "R" | "S";
   pos: string;
   kind: "P" | "PP";
   rating: string;
@@ -21,6 +22,7 @@ export type PickRow = {
   manager: string;
   mlbid: string;
   name: string;
+  bats: "L" | "R" | "S";
   pos: string;
 };
 

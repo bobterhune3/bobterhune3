@@ -1,5 +1,14 @@
 type Split = { avg: string; ops: string; hr: string };
-type StoredStats = { field: string; vsl: Split | null; vsr: Split | null };
+type StoredStats = { field: string; vsl: Split | null; vsr: Split | null; ab: string; ip: string };
+
+function emptyStats(): StoredStats {
+  return { field: "", vsl: null, vsr: null, ab: "", ip: "" };
+}
+
+function statText(value: unknown): string {
+  if (value == null || value === "") return "";
+  return String(value);
+}
 
 type RawSplit = {
   numTeams?: number;
@@ -68,9 +77,28 @@ function fieldingLine(splits: RawSplit[]): string {
 
 type Person = { id?: number; stats?: { group?: { displayName?: string }; splits?: RawSplit[] }[] };
 
+function applySeason(payload: { people?: Person[] }, target: Map<string, StoredStats>): void {
+  for (const person of payload.people ?? []) {
+    const current = target.get(String(person.id ?? ""));
+    if (!current) continue;
+    for (const group of person.stats ?? []) {
+      const name = group.group?.displayName ?? "";
+      const splits = group.splits ?? [];
+      if (name === "hitting") {
+        const ab = statText(combined(splits)?.stat?.atBats);
+        if (ab) current.ab = ab;
+      }
+      if (name === "pitching") {
+        const ip = statText(combined(splits)?.stat?.inningsPitched);
+        if (ip) current.ip = ip;
+      }
+    }
+  }
+}
+
 export function readPeople(payload: { people?: Person[] }, ids: string[]): Map<string, StoredStats> {
   const out = new Map<string, StoredStats>();
-  for (const id of ids) out.set(id, { field: "", vsl: null, vsr: null });
+  for (const id of ids) out.set(id, emptyStats());
   for (const person of payload.people ?? []) {
     const id = String(person.id ?? "");
     if (!out.has(id)) continue;
@@ -101,10 +129,12 @@ export async function fetchStats(ids: string[], season: number): Promise<Map<str
   const joined = ids.join(",");
   const splitsUrl = `https://statsapi.mlb.com/api/v1/people?personIds=${joined}&hydrate=stats(group=[hitting,pitching],type=statSplits,sitCodes=[vl,vr],season=${season})`;
   const fieldUrl = `https://statsapi.mlb.com/api/v1/people?personIds=${joined}&hydrate=stats(group=[fielding],type=season,season=${season})`;
-  const [splitsRes, fieldRes] = await Promise.all([fetch(splitsUrl), fetch(fieldUrl)]);
-  if (!splitsRes.ok || !fieldRes.ok) throw new Error("MLB stats were not available.");
+  const seasonUrl = `https://statsapi.mlb.com/api/v1/people?personIds=${joined}&hydrate=stats(group=[hitting,pitching],type=season,season=${season})`;
+  const [splitsRes, fieldRes, seasonRes] = await Promise.all([fetch(splitsUrl), fetch(fieldUrl), fetch(seasonUrl)]);
+  if (!splitsRes.ok || !fieldRes.ok || !seasonRes.ok) throw new Error("MLB stats were not available.");
   const splits = readPeople((await splitsRes.json()) as { people?: Person[] }, ids);
   const fielding = readPeople((await fieldRes.json()) as { people?: Person[] }, ids);
+  applySeason((await seasonRes.json()) as { people?: Person[] }, splits);
   for (const [id, row] of fielding) {
     const target = splits.get(id);
     if (target && row.field) target.field = row.field;
@@ -112,10 +142,7 @@ export async function fetchStats(ids: string[], season: number): Promise<Map<str
   return splits;
 }
 
-export function mergeStats(base: StoredStats | undefined, extra: StoredStats | undefined): string {
-  const field = extra?.field || base?.field || "";
-  const vsl = extra?.vsl || base?.vsl || null;
-  const vsr = extra?.vsr || base?.vsr || null;
-  if (!field && !vsl && !vsr) return "";
-  return JSON.stringify({ field, vsl, vsr });
+export function statsJson(row: StoredStats | undefined): string {
+  const value = row ?? emptyStats();
+  return JSON.stringify({ field: value.field, vsl: value.vsl, vsr: value.vsr, ab: value.ab, ip: value.ip });
 }

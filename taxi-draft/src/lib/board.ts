@@ -1,9 +1,9 @@
 import { sql, tx } from "./db";
-import { ready } from "./seed";
+import { applyHands, ready } from "./seed";
 import { schedule, type Slot, type SlotTeam } from "./order";
 import { displayName, posInfo } from "./positions";
 import { draftPageUrl, messageFor, onePerManager, sendMail } from "./mail";
-import { fetchStats, mergeStats } from "./mlb";
+import { fetchStats, statsJson } from "./mlb";
 import { decodeRoster, playersFromCsv } from "./roster";
 import type { Board, Clock, PickRow, PlayerCard, SettingsPayload, SplitLine, TeamRow, UpcomingPick } from "./types";
 import { passphraseConfigured } from "./auth";
@@ -30,6 +30,7 @@ type PlayerRecord = {
   avl_ab: string;
   som: string;
   stats: string;
+  bats: string;
 };
 
 const PAGE = 10;
@@ -77,26 +78,28 @@ function card(player: PlayerRecord): PlayerCard {
   let field = "";
   let vsl: SplitLine | null = null;
   let vsr: SplitLine | null = null;
+  let seasonTime = "";
   if (player.stats) {
     try {
-      const parsed = JSON.parse(player.stats) as { field?: string; vsl?: SplitLine; vsr?: SplitLine };
+      const parsed = JSON.parse(player.stats) as { field?: string; vsl?: SplitLine; vsr?: SplitLine; ab?: string; ip?: string };
       field = parsed.field ?? "";
       vsl = parseSplit(parsed.vsl);
       vsr = parseSplit(parsed.vsr);
+      seasonTime = player.kind === "P" ? parsed.ip ?? "" : parsed.ab ?? "";
     } catch {
       field = "";
     }
   }
   const info = posInfo(player.sort_code);
-  const time = player.est_ab && player.avl_ab ? `EST ${player.est_ab} · AVL ${player.avl_ab}` : player.playing_time;
   return {
     mlbid: player.mlbid,
     name: displayName(player.first_name, player.last_name),
+    bats: player.bats === "L" || player.bats === "S" || player.bats === "R" ? player.bats : "R",
     pos: info.abbr,
     kind: player.kind,
     rating: player.som,
     field,
-    playingTime: time,
+    playingTime: seasonTime,
     timeLabel: player.kind === "P" ? "IP" : "AB",
     vsl,
     vsr,
@@ -104,8 +107,8 @@ function card(player: PlayerRecord): PlayerCard {
 }
 
 async function pickedRows(list: TeamRecord[]): Promise<PickRow[]> {
-  const picks = await sql<{ pick_number: number; round: number; team_abbr: string; mlbid: string; first_name: string; last_name: string; sort_code: string }>(
-    `select k.pick_number, k.round, k.team_abbr, k.mlbid, p.first_name, p.last_name, p.sort_code
+  const picks = await sql<{ pick_number: number; round: number; team_abbr: string; mlbid: string; first_name: string; last_name: string; sort_code: string; bats: string }>(
+    `select k.pick_number, k.round, k.team_abbr, k.mlbid, p.first_name, p.last_name, p.sort_code, p.bats
      from picks k join players p on p.draft = k.draft and p.mlbid = k.mlbid
      where k.draft = 'taxi' order by k.pick_number desc`,
   );
@@ -120,6 +123,7 @@ async function pickedRows(list: TeamRecord[]): Promise<PickRow[]> {
       manager: team?.manager ?? "",
       mlbid: pick.mlbid,
       name: displayName(pick.first_name, pick.last_name),
+      bats: pick.bats === "L" || pick.bats === "S" || pick.bats === "R" ? pick.bats : "R",
       pos: posInfo(pick.sort_code).abbr,
     };
   });
@@ -219,8 +223,9 @@ export async function getBoard(input: { q: string; filter: string; page: number 
   const slots = slotsFor(list, row);
   const madeRows = await pickedRows(list);
   const made = madeRows.length;
+  await warmStats(num(row.season) || 2026);
   const players = await sql<PlayerRecord>(
-    `select mlbid, first_name, last_name, kind, sort_code, playing_time, est_ab, avl_ab, som, stats
+    `select mlbid, first_name, last_name, kind, sort_code, playing_time, est_ab, avl_ab, som, stats, bats
      from players where draft = 'taxi' and mlbid not in (select mlbid from picks where draft = 'taxi')`,
   );
   const q = input.q.trim().toLowerCase();
@@ -466,16 +471,35 @@ export async function replaceRoster(buf: Buffer, replace: boolean): Promise<{ ok
     const chunk = parsed.slice(i, i + 80);
     const values: unknown[] = [];
     const tuples = chunk.map((player, index) => {
-      const base = index * 10;
-      values.push(player.mlbid, player.first, player.last, player.kind, player.sortCode, player.playingTime, player.estAb, player.avlAb, player.som, player.org);
-      return `('taxi', $${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, '')`;
+      const base = index * 11;
+      values.push(player.mlbid, player.first, player.last, player.kind, player.sortCode, player.playingTime, player.estAb, player.avlAb, player.som, player.org, player.bats);
+      return `('taxi', $${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, '')`;
     });
     await sql(
-      `insert into players (draft, mlbid, first_name, last_name, kind, sort_code, playing_time, est_ab, avl_ab, som, org, stats) values ${tuples.join(", ")} on conflict (draft, mlbid) do nothing`,
+      `insert into players (draft, mlbid, first_name, last_name, kind, sort_code, playing_time, est_ab, avl_ab, som, org, bats, stats) values ${tuples.join(", ")} on conflict (draft, mlbid) do nothing`,
       values,
     );
   }
+  await applyHands();
   return { ok: true, count: parsed.length };
+}
+
+async function warmStats(season: number): Promise<void> {
+  if (cacheRunning) return;
+  cacheRunning = true;
+  try {
+    const missing = await sql<{ mlbid: string }>("select mlbid from players where draft = 'taxi' and stats = '' order by last_name, first_name limit 50");
+    if (missing.length === 0) return;
+    const ids = missing.map((player) => player.mlbid);
+    const stats = await fetchStats(ids, season);
+    for (const id of ids) {
+      await sql("update players set stats = $1 where draft = 'taxi' and mlbid = $2 and stats = ''", [statsJson(stats.get(id)), id]);
+    }
+  } catch {
+    return;
+  } finally {
+    cacheRunning = false;
+  }
 }
 
 export async function refreshCache(): Promise<{ ok: true; cached: number; missing: number } | { ok: false; error: string; status: number }> {
@@ -489,9 +513,7 @@ export async function refreshCache(): Promise<{ ok: true; cached: number; missin
       const chunk = missing.slice(i, i + 50).map((player) => player.mlbid);
       const stats = await fetchStats(chunk, num(row.season) || 2026);
       for (const id of chunk) {
-        const json = mergeStats(undefined, stats.get(id));
-        if (!json) continue;
-        await sql("update players set stats = $1 where draft = 'taxi' and mlbid = $2", [json, id]);
+        await sql("update players set stats = $1 where draft = 'taxi' and mlbid = $2 and stats = ''", [statsJson(stats.get(id)), id]);
       }
     }
     const counts = await sql<{ cached: number; missing: number }>(

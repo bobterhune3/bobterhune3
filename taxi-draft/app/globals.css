@@ -100,6 +100,8 @@ input[type="checkbox"], input[type="file"] { width: auto; padding: 0; background
 }
 .name-line { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .name, .pick-name { font-weight: 700; letter-spacing: -0.02em; }
+.hand { font-weight: 650; color: var(--muted); }
+.season-line { margin: 2px 0 0; color: #d5deea; font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .pos { font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 6px; background: rgba(255, 255, 255, 0.07); }
 .pos.pitch { background: rgba(120, 162, 214, 0.16); color: #c5d9f5; }
 .pt { margin-left: auto; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }

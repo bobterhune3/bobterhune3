@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   const q = url.searchParams.get("q") ?? "";
   const board = await getBoard({
     q: q.slice(0, 40),
-    filter: ["All", "SP", "RP", "C", "1B", "2B", "3B", "SS", "OF"].includes(filter) ? filter : "All",
+    filter: ["All", "SP", "SW", "RP", "C", "1B", "2B", "3B", "SS", "OF"].includes(filter) ? filter : "All",
     page: Number.isFinite(page) ? page : 1,
   });
   return Response.json(board);

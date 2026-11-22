@@ -1,3 +1,5 @@
+export type Bats = "" | "L" | "R" | "S";
+
 export type RosterPlayer = {
   mlbid: string;
   first: string;
@@ -9,7 +11,16 @@ export type RosterPlayer = {
   avlAb: string;
   som: string;
   org: string;
+  bats: Bats;
 };
+
+export function batsFromMark(mark: string): Bats {
+  const value = mark.trim();
+  if (value === "*") return "L";
+  if (value === "#") return "S";
+  if (value === "") return "R";
+  return "";
+}
 
 export function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
@@ -60,7 +71,7 @@ export function playersFromCsv(text: string): RosterPlayer[] {
   const seen = new Set<string>();
   for (const row of rows) {
     const cells = row.map((cell) => cell.trim());
-    const looksLikeHeader = cells.some((cell) => /mlbid|mlb id/i.test(cell)) || cells[0]?.toLowerCase() === "kind";
+    const looksLikeHeader = cells[0]?.toLowerCase() === "kind" || (cells.some((cell) => /^name$/i.test(cell)) && cells.some((cell) => /mlbid|mlb id/i.test(cell)));
     if (looksLikeHeader && cells[0]?.toUpperCase() !== "P" && cells[0]?.toUpperCase() !== "PP") {
       header = cells;
       continue;
@@ -75,6 +86,7 @@ export function playersFromCsv(text: string): RosterPlayer[] {
     let estAb = "";
     let avlAb = "";
     let som = "";
+    let bats: RosterPlayer["bats"] = "";
     if (header) {
       const columns = header;
       const at = (pattern: RegExp) => {
@@ -91,14 +103,18 @@ export function playersFromCsv(text: string): RosterPlayer[] {
       estAb = at(/est ab/i);
       avlAb = at(/avl ab/i);
       som = at(/som/i);
+      const handColumn = headerIndex(columns, /^bats$|^hand$|^l\(\*\)$/i);
+      if (handColumn >= 0) bats = batsFromMark(cells[handColumn] ?? "");
     } else if (cells[0] === "P" || cells[0] === "PP") {
       kind = cells[0] ?? "";
       code = cells[1] ?? "";
       org = cells[2] ?? "";
       name = cells[3] ?? "";
-      playingTime = cells[7] ?? "";
-      sortCode = cells[9] ?? "";
-      mlbid = cells[10] ?? "";
+      const wide = /^\d+$/.test(cells[10] ?? "");
+      playingTime = wide ? cells[7] ?? "" : cells[4] ?? "";
+      sortCode = wide ? cells[9] ?? "" : cells[5] ?? "";
+      mlbid = wide ? cells[10] ?? "" : cells[6] ?? "";
+      if (wide) bats = batsFromMark(cells[4] ?? "");
     } else continue;
     if ((kind !== "P" && kind !== "PP") || !/^\d+$/.test(mlbid)) continue;
     if (!code || "MBGN".includes(code.slice(-1))) continue;
@@ -117,6 +133,7 @@ export function playersFromCsv(text: string): RosterPlayer[] {
       avlAb,
       som,
       org,
+      bats,
     });
   }
   return players;

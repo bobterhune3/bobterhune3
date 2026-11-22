@@ -3,7 +3,7 @@ export function posInfo(sort: string): { abbr: string; filters: string[] } {
     case "1.0":
       return { abbr: "SP", filters: ["SP"] };
     case "1.2":
-      return { abbr: "SW", filters: ["SP", "RP"] };
+      return { abbr: "SW", filters: ["SW"] };
     case "1.3":
       return { abbr: "CL", filters: ["RP"] };
     case "1.4":
@@ -40,7 +40,7 @@ export function headshotUrl(mlbid: string): string {
   return `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:silo:current.png,q_auto:best,f_auto,h_90,w_90/v1/people/${encodeURIComponent(mlbid)}/headshot/67/current`;
 }
 
-export const FILTERS = ["All", "SP", "RP", "C", "1B", "2B", "3B", "SS", "OF"] as const;
+export const FILTERS = ["All", "SP", "SW", "RP", "C", "1B", "2B", "3B", "SS", "OF"] as const;
 
 export function displayName(first: string, last: string): string {
   return first ? `${first} ${last}` : last;
