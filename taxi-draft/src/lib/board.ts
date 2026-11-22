@@ -261,6 +261,86 @@ export async function getBoard(input: { q: string; filter: string; page: number 
   };
 }
 
+export async function getOifuBoard(input: { q: string; filter: string; page: number }): Promise<Board> {
+  await ready();
+  const row = await settings();
+  const list = await teams();
+  await warmStats(num(row.season) || 2026);
+  const players = await sql<PlayerRecord>(
+    "select mlbid, first_name, last_name, kind, sort_code, playing_time, est_ab, avl_ab, som, stats, bats from players where draft = 'taxi'",
+  );
+  const q = input.q.trim().toLowerCase();
+  const searching = q.length >= 3;
+  const filtered = players.filter((player) => {
+    if (searching) {
+      const first = player.first_name.toLowerCase();
+      const last = player.last_name.toLowerCase();
+      return `${first} ${last}`.includes(q) || `${last} ${first}`.includes(q);
+    }
+    if (!input.filter || input.filter === "All") return true;
+    return posInfo(player.sort_code).filters.includes(input.filter);
+  });
+  filtered.sort((a, b) => a.last_name.localeCompare(b.last_name, "en") || a.first_name.localeCompare(b.first_name, "en"));
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE));
+  const page = Math.min(Math.max(1, input.page), pageCount);
+  const slice = filtered.slice((page - 1) * PAGE, page * PAGE);
+  const ordered = list.slice().sort((a, b) => a.sortOrder - b.sortOrder || a.abbr.localeCompare(b.abbr));
+  const first = ordered[0];
+  const second = ordered[1];
+  const clock: Clock = first
+    ? {
+        closed: false,
+        started: false,
+        finished: false,
+        manager: first.manager,
+        team: first.name,
+        abbr: first.abbr,
+        league: first.league,
+        round: 1,
+        pick: 1,
+        nextManager: second?.manager ?? "",
+        nextTeam: second?.name ?? "",
+        endsAfter: !second,
+        message: "OIFU rules are not in yet.",
+      }
+    : {
+        closed: true,
+        started: false,
+        finished: false,
+        manager: "",
+        team: "",
+        abbr: "",
+        league: "",
+        round: 0,
+        pick: 0,
+        nextManager: "",
+        nextTeam: "",
+        endsAfter: false,
+        message: "No teams are loaded.",
+      };
+  return {
+    active: "oifu",
+    passphraseConfigured: passphraseConfigured(),
+    availableCount: players.length,
+    matchCount: filtered.length,
+    page,
+    pageCount,
+    filter: searching ? "All" : input.filter || "All",
+    q: input.q,
+    clock,
+    players: slice.map(card),
+    picks: [],
+    upcoming: ordered.slice(1, 6).map((team, index) => ({
+      pick: index + 2,
+      round: 1,
+      abbr: team.abbr,
+      team: team.name,
+      manager: team.manager,
+    })),
+    mailProblem: false,
+  };
+}
+
 function clean(value: unknown, max: number): string {
   return String(value ?? "").replace(/[\u0000-\u001f]/g, "").trim().slice(0, max);
 }

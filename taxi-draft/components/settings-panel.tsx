@@ -40,7 +40,6 @@ export function SettingsPanel() {
   const [settings, setSettings] = useState<SettingsPayload | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [resetText, setResetText] = useState("");
   const [replace, setReplace] = useState(false);
 
   async function load() {
@@ -94,23 +93,34 @@ export function SettingsPanel() {
   }
 
   async function start() {
+    if (!settings) return;
     setError("");
     setMessage("");
+    if (settings.active !== "taxi" && settings.active !== "oifu") {
+      setError("Choose Taxi Squad or OIFU.");
+      return;
+    }
     try {
+      await call("/api/settings", passphrase, { passphrase, ...settings, teams: settings.teams });
+      if (settings.active === "oifu") {
+        window.location.assign("/oifu");
+        return;
+      }
       const result = await call("/api/settings", passphrase, { passphrase, action: "start" }) as { mailError?: string };
-      setMessage(result.mailError ? `Draft started. Email: ${result.mailError}` : "Draft started.");
-      await load();
+      if (result.mailError) setMessage(`Draft started. Email: ${result.mailError}`);
+      window.location.assign("/");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Start failed.");
     }
   }
 
   async function reset() {
+    if (!window.confirm("Reset the draft? Every player becomes available and no team keeps a pick.")) return;
     setError("");
+    setMessage("");
     try {
-      await call("/api/settings", passphrase, { passphrase, action: "reset", confirm: resetText });
-      setResetText("");
-      setMessage("Pick history cleared.");
+      await call("/api/settings", passphrase, { passphrase, action: "reset", confirm: "RESET" });
+      setMessage("Draft reset. Every player is available.");
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Reset failed.");
@@ -121,8 +131,8 @@ export function SettingsPanel() {
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <div className="brand-name">NoDice <span>Taxi Squad settings</span></div>
-          <Link href="/">Pick page</Link>
+          <div className="brand-name">NoDice <span>Draft settings</span></div>
+          <Link href={settings?.active === "oifu" ? "/oifu" : "/"}>{settings?.active === "oifu" ? "OIFU page" : "Pick page"}</Link>
         </div>
       </header>
       <div className="settings">
@@ -141,9 +151,9 @@ export function SettingsPanel() {
             <section className="panel" style={{ padding: 16 }}>
               <h2>Draft</h2>
               <div className="rounds">
-                <label className="search">Active
+                <label className="search">Draft
                   <select value={settings.active} onChange={(event) => setSettings({ ...settings, active: event.target.value })}>
-                    <option value="off">Off</option>
+                    <option value="off">Closed</option>
                     <option value="taxi">Taxi Squad</option>
                     <option value="oifu">OIFU</option>
                   </select>
@@ -153,11 +163,13 @@ export function SettingsPanel() {
                 <label className="search">American rounds<input disabled={settings.frozen} value={settings.roundsAmerican} onChange={(event) => setSettings({ ...settings, roundsAmerican: Number(event.target.value) })} /></label>
                 <label className="search">Federal rounds<input disabled={settings.frozen} value={settings.roundsFederal} onChange={(event) => setSettings({ ...settings, roundsFederal: Number(event.target.value) })} /></label>
               </div>
-              <p className="hint">{settings.frozen ? "Order, leagues, and round caps are frozen after pick 1." : "Set each manager's email once. Save copies it onto every team he runs."}</p>
+              <p className="hint">Choose Taxi Squad or OIFU, then start. Reset clears every pick. Teams, emails, and the player pool stay.</p>
+              {settings.frozen ? <p className="hint">Order, leagues, and round caps are frozen after pick 1.</p> : null}
               <p className="hint">Stats cache: {settings.cached} cached, {settings.missing} missing.</p>
               <div className="dialog-actions">
                 <button type="button" className="primary" onClick={() => void save()}>Save</button>
                 <button type="button" className="ghost" onClick={() => void start()}>Start draft</button>
+                <button type="button" className="ghost" onClick={() => void reset()}>Reset draft</button>
                 <button type="button" className="ghost" onClick={() => void call("/api/cache", passphrase, { passphrase }).then(() => load()).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : "Refresh failed."))}>Refresh MLB cache</button>
               </div>
             </section>
@@ -222,14 +234,6 @@ export function SettingsPanel() {
                   <button type="button" className="ghost" onClick={() => void call("/api/email", passphrase, { passphrase, pickNumber: item.pickNumber }).then(() => load()).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : "Send failed."))}>Send again</button>
                 </div>
               ))}
-            </section>
-            <section className="panel" style={{ padding: 16 }}>
-              <h2>Reset draft</h2>
-              <p className="hint">Clears picks and the email log. Teams, leagues, order, and addresses stay.</p>
-              <div className="inline" style={{ gridTemplateColumns: "1fr auto" }}>
-                <input value={resetText} onChange={(event) => setResetText(event.target.value)} placeholder="Type RESET" />
-                <button type="button" className="ghost" onClick={() => void reset()}>Reset picks</button>
-              </div>
             </section>
           </>
         ) : null}

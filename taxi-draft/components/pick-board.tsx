@@ -49,7 +49,7 @@ function Head({ mlbid, name }: { mlbid: string; name: string }) {
   return <img className="head" alt="" draggable={false} src={headshotUrl(mlbid)} onError={(event) => { event.currentTarget.replaceWith(Object.assign(document.createElement("div"), { className: "head", textContent: letters })); }} />;
 }
 
-export function PickBoard({ initial }: { initial: Board }) {
+export function PickBoard({ initial, kind = "taxi" }: { initial: Board; kind?: "taxi" | "oifu" }) {
   const [board, setBoard] = useState(initial);
   const [filter, setFilter] = useState(initial.filter || "All");
   const [q, setQ] = useState("");
@@ -64,6 +64,7 @@ export function PickBoard({ initial }: { initial: Board }) {
 
   async function load(next = { filter, q, page }) {
     const params = new URLSearchParams({ filter: next.filter, q: next.q, page: String(next.page) });
+    if (kind === "oifu") params.set("draft", "oifu");
     const response = await fetch(`/api/board?${params}`);
     if (!response.ok) return;
     const data = (await response.json()) as Board;
@@ -111,7 +112,7 @@ export function PickBoard({ initial }: { initial: Board }) {
     : clock.finished
       ? "The draft is complete."
       : !clock.started
-        ? "Start the draft in Settings. Pick stays off until then."
+        ? (kind === "oifu" ? "OIFU rules are not in yet. Picks stay off until then." : "Start the draft in Settings. Pick stays off until then.")
         : !selected
           ? "Put a player in the slot."
           : passphrase.trim().length === 0
@@ -122,7 +123,7 @@ export function PickBoard({ initial }: { initial: Board }) {
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <div className="brand-name">NoDice <span>Taxi Squad</span></div>
+          <div className="brand-name">NoDice <span>{kind === "oifu" ? "OIFU" : "Taxi Squad"}</span></div>
           <Link href="/settings">Settings</Link>
         </div>
         <div className="turn" aria-live="polite">
@@ -200,7 +201,7 @@ export function PickBoard({ initial }: { initial: Board }) {
               <li>Press Pick.</li>
               <li>Confirm the team, manager, and player.</li>
             </ol>
-            <p className="fine">Confirm saves the pick. Each manager gets one email when Gmail is configured.</p>
+            <p className="fine">{kind === "oifu" ? "This board matches the Taxi Squad page. OIFU pick rules come next." : "Confirm saves the pick. Each manager gets one email when Gmail is configured."}</p>
           </div>
         </section>
         <section className="panel" aria-label="Available players">
