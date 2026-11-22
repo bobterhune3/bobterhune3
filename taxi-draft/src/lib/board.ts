@@ -130,7 +130,7 @@ async function pickedRows(list: TeamRecord[]): Promise<PickRow[]> {
 }
 
 function upcomingPicks(slots: Slot[], made: number): UpcomingPick[] {
-  return slots.slice(made, made + 5).map((slot) => ({
+  return slots.slice(made + 1, made + 6).map((slot) => ({
     pick: slot.pick,
     round: slot.round,
     abbr: slot.team.abbr,

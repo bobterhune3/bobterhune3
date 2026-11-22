@@ -269,6 +269,23 @@ export function PickBoard({ initial }: { initial: Board }) {
               ))}
             </div>
           </details>
+          <details className="rail-current" open>
+            <summary><span className="panel-title">Current Pick</span><span className="count">{clock.team && !clock.closed && !clock.finished ? 1 : 0}</span></summary>
+            <div className="rail-list">
+              {clock.team && !clock.closed && !clock.finished ? (
+                <article className="next-row">
+                  <div className="pick-num">{clock.pick}</div>
+                  <TeamLogo abbr={clock.abbr} name={clock.team} />
+                  <div>
+                    <div className="pick-name">{clock.team}</div>
+                    <div className="pick-pos">{clock.manager} · Round {clock.round}</div>
+                  </div>
+                </article>
+              ) : (
+                <div className="empty">No team is on the clock.</div>
+              )}
+            </div>
+          </details>
           <details className="rail-next" open>
             <summary><span className="panel-title">Next picks</span><span className="count">{board.upcoming.length}</span></summary>
             <div className="rail-list">

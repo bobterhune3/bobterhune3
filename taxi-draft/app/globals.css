@@ -122,8 +122,8 @@ input[type="checkbox"], input[type="file"] { width: auto; padding: 0; background
 .rail-note { margin: 0; padding: 0 14px 10px; color: var(--muted); font-size: 12px; }
 .rail-picks[open] { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .rail-picks[open] .rail-list { flex: 1 1 auto; min-height: 0; overflow: auto; }
-.rail-next { flex: 0 0 auto; border-top: 1px solid var(--line); }
-.rail-next .rail-list { overflow: visible; }
+.rail-current, .rail-next { flex: 0 0 auto; border-top: 1px solid var(--line); }
+.rail-current .rail-list, .rail-next .rail-list { overflow: visible; }
 .pick-row, .next-row {
   display: grid; gap: 8px; align-items: center;
   padding: 8px; border-radius: 12px; background: #1a2130; border: 1px solid rgba(255, 255, 255, 0.06);
@@ -161,6 +161,6 @@ input[type="checkbox"], input[type="file"] { width: auto; padding: 0; background
   h1 { font-size: 28px; }
   .board { display: flex; flex-direction: column; }
   .rail { overflow: visible; }
-  .list, .rail-list, .rail-next .rail-list { overflow: visible; }
+  .list, .rail-list, .rail-current .rail-list, .rail-next .rail-list { overflow: visible; }
   .rail summary { cursor: pointer; }
 }
