@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { sql } from "./db";
-import { playersFromCsv } from "./roster";
+import { playersFromCsv, type OwnedPlayer } from "./roster";
 
 export async function applyHands(): Promise<void> {
   const file = JSON.parse(await readFile(path.join(process.cwd(), "data", "hands.json"), "utf8")) as Record<string, string>;
@@ -100,4 +100,31 @@ async function prepare(): Promise<void> {
     }
   }
   await applyHands();
+  await ensureOwned();
+}
+
+export async function saveOwned(rows: OwnedPlayer[], replace: boolean): Promise<void> {
+  if (rows.length === 0) return;
+  if (replace) await sql("delete from owned_players");
+  for (let i = 0; i < rows.length; i += 80) {
+    const chunk = rows.slice(i, i + 80);
+    const values: unknown[] = [];
+    const tuples = chunk.map((player, index) => {
+      const base = index * 7;
+      values.push(player.team, player.mlbid, player.first, player.last, player.kind, player.sortCode, player.bats);
+      return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, '')`;
+    });
+    await sql(
+      `insert into owned_players (team_abbr, mlbid, first_name, last_name, kind, sort_code, bats, stats) values ${tuples.join(", ")}
+       on conflict (team_abbr, mlbid) do update set first_name = excluded.first_name, last_name = excluded.last_name, kind = excluded.kind, sort_code = excluded.sort_code, bats = excluded.bats`,
+      values,
+    );
+  }
+}
+
+async function ensureOwned(): Promise<void> {
+  const existing = await sql<{ n: number }>("select count(*)::int as n from owned_players");
+  if (Number(existing[0]?.n ?? 0) > 0) return;
+  const rows = JSON.parse(await readFile(path.join(process.cwd(), "data", "owned.json"), "utf8")) as OwnedPlayer[];
+  await saveOwned(rows, false);
 }

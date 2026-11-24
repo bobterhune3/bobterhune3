@@ -1,10 +1,13 @@
 import { sql, tx } from "./db";
-import { applyHands, ready } from "./seed";
+import { applyHands, ready, saveOwned } from "./seed";
 import { schedule, type Slot, type SlotTeam } from "./order";
 import { displayName, posInfo } from "./positions";
 import { draftPageUrl, messageFor, onePerManager, sendMail } from "./mail";
 import { fetchStats, statsJson } from "./mlb";
-import { decodeRoster, playersFromCsv } from "./roster";
+import { clearOifu } from "./oifu";
+import { decodeRoster, ownedFromCsv, playersFromCsv } from "./roster";
+
+export { getOifuBoard } from "./oifu";
 import type { Board, Clock, PickRow, PlayerCard, SettingsPayload, SplitLine, TeamRow, UpcomingPick } from "./types";
 import { passphraseConfigured } from "./auth";
 
@@ -226,7 +229,7 @@ export async function getBoard(input: { q: string; filter: string; page: number 
   await warmStats(num(row.season) || 2026);
   const players = await sql<PlayerRecord>(
     `select mlbid, first_name, last_name, kind, sort_code, playing_time, est_ab, avl_ab, som, stats, bats
-     from players where draft = 'taxi' and mlbid not in (select mlbid from picks where draft = 'taxi')`,
+     from players where draft = 'taxi' and mlbid not in (select mlbid from picks where draft in ('taxi', 'oifu'))`,
   );
   const q = input.q.trim().toLowerCase();
   const searching = q.length >= 3;
@@ -258,86 +261,6 @@ export async function getBoard(input: { q: string; filter: string; page: number 
     picks: madeRows,
     upcoming: upcomingPicks(slots, made),
     mailProblem: num(mail[0]?.n) > 0,
-  };
-}
-
-export async function getOifuBoard(input: { q: string; filter: string; page: number }): Promise<Board> {
-  await ready();
-  const row = await settings();
-  const list = await teams();
-  await warmStats(num(row.season) || 2026);
-  const players = await sql<PlayerRecord>(
-    "select mlbid, first_name, last_name, kind, sort_code, playing_time, est_ab, avl_ab, som, stats, bats from players where draft = 'taxi'",
-  );
-  const q = input.q.trim().toLowerCase();
-  const searching = q.length >= 3;
-  const filtered = players.filter((player) => {
-    if (searching) {
-      const first = player.first_name.toLowerCase();
-      const last = player.last_name.toLowerCase();
-      return `${first} ${last}`.includes(q) || `${last} ${first}`.includes(q);
-    }
-    if (!input.filter || input.filter === "All") return true;
-    return posInfo(player.sort_code).filters.includes(input.filter);
-  });
-  filtered.sort((a, b) => a.last_name.localeCompare(b.last_name, "en") || a.first_name.localeCompare(b.first_name, "en"));
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE));
-  const page = Math.min(Math.max(1, input.page), pageCount);
-  const slice = filtered.slice((page - 1) * PAGE, page * PAGE);
-  const ordered = list.slice().sort((a, b) => a.sortOrder - b.sortOrder || a.abbr.localeCompare(b.abbr));
-  const first = ordered[0];
-  const second = ordered[1];
-  const clock: Clock = first
-    ? {
-        closed: false,
-        started: false,
-        finished: false,
-        manager: first.manager,
-        team: first.name,
-        abbr: first.abbr,
-        league: first.league,
-        round: 1,
-        pick: 1,
-        nextManager: second?.manager ?? "",
-        nextTeam: second?.name ?? "",
-        endsAfter: !second,
-        message: "OIFU rules are not in yet.",
-      }
-    : {
-        closed: true,
-        started: false,
-        finished: false,
-        manager: "",
-        team: "",
-        abbr: "",
-        league: "",
-        round: 0,
-        pick: 0,
-        nextManager: "",
-        nextTeam: "",
-        endsAfter: false,
-        message: "No teams are loaded.",
-      };
-  return {
-    active: "oifu",
-    passphraseConfigured: passphraseConfigured(),
-    availableCount: players.length,
-    matchCount: filtered.length,
-    page,
-    pageCount,
-    filter: searching ? "All" : input.filter || "All",
-    q: input.q,
-    clock,
-    players: slice.map(card),
-    picks: [],
-    upcoming: ordered.slice(1, 6).map((team, index) => ({
-      pick: index + 2,
-      round: 1,
-      abbr: team.abbr,
-      team: team.name,
-      manager: team.manager,
-    })),
-    mailProblem: false,
   };
 }
 
@@ -407,7 +330,7 @@ export async function confirmPick(mlbid: string, request: Request): Promise<{ ok
       const slot = slots[num(made[0]?.n)];
       if (!slot) throw new Error("complete");
       const player = await query<{ mlbid: string }>(
-        "select mlbid from players where draft = 'taxi' and mlbid = $1 and mlbid not in (select mlbid from picks where draft = 'taxi')",
+        "select mlbid from players where draft = 'taxi' and mlbid = $1 and mlbid not in (select mlbid from picks where draft in ('taxi', 'oifu'))",
         [id],
       );
       if (!player[0]) throw new Error("gone");
@@ -440,6 +363,7 @@ export async function getSettings(): Promise<SettingsPayload> {
   const mail = await sql<{ pick_number: number; error: string }>(
     "select pick_number, error from email_log where draft = 'taxi' and error <> '' order by pick_number",
   );
+  const owned = await sql<{ n: number }>("select count(*)::int as n from owned_players");
   return {
     active: row.active,
     season: num(row.season),
@@ -452,6 +376,7 @@ export async function getSettings(): Promise<SettingsPayload> {
     cached: num(counts[0]?.cached),
     missing: num(counts[0]?.missing),
     mailFailures: mail.map((item) => ({ pickNumber: num(item.pick_number), error: item.error })),
+    owned: num(owned[0]?.n),
   };
 }
 
@@ -531,6 +456,7 @@ export async function startDraft(request: Request): Promise<{ ok: true; mailErro
 
 export async function resetDraft(): Promise<void> {
   await ready();
+  await clearOifu();
   await sql("delete from picks where draft = 'taxi'");
   await sql("delete from email_log where draft = 'taxi'");
   await sql("update draft_settings set started = 0 where id = 1");
@@ -539,7 +465,9 @@ export async function resetDraft(): Promise<void> {
 export async function replaceRoster(buf: Buffer, replace: boolean): Promise<{ ok: true; count: number } | { ok: false; error: string; status: number }> {
   await ready();
   if (buf.length > 1_500_000) return { ok: false, error: "That roster file is too large.", status: 400 };
-  const parsed = playersFromCsv(decodeRoster(buf));
+  const text = decodeRoster(buf);
+  const parsed = playersFromCsv(text);
+  const owned = ownedFromCsv(text);
   if (parsed.length === 0) return { ok: false, error: "No eligible players were found in that file.", status: 400 };
   const picks = await sql<{ n: number }>("select count(*)::int as n from picks where draft = 'taxi'");
   if (num(picks[0]?.n) > 0 && !replace) {
@@ -561,6 +489,7 @@ export async function replaceRoster(buf: Buffer, replace: boolean): Promise<{ ok
     );
   }
   await applyHands();
+  await saveOwned(owned, true);
   return { ok: true, count: parsed.length };
 }
 

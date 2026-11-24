@@ -50,6 +50,39 @@ export type Clock = {
   message: string;
 };
 
+export type OifuPerson = {
+  mlbid: string;
+  name: string;
+  bats: "L" | "R" | "S";
+  pos: string;
+};
+
+export type OifuDrop = OifuPerson & {
+  round: number;
+  abbr: string;
+  team: string;
+  manager: string;
+};
+
+export type OifuTeam = {
+  abbr: string;
+  team: string;
+  manager: string;
+};
+
+export type OifuView = {
+  round: number;
+  phase: "idle" | "declare" | "pick" | "stall" | "ended";
+  roster: OifuPerson[];
+  drops: OifuDrop[];
+  waiting: OifuTeam[];
+  openTeams: OifuTeam[];
+  skipped: OifuTeam[];
+  withdrawn: OifuTeam[];
+  canEnd: boolean;
+  canContinue: boolean;
+};
+
 export type Board = {
   active: string;
   passphraseConfigured: boolean;
@@ -64,6 +97,7 @@ export type Board = {
   picks: PickRow[];
   upcoming: UpcomingPick[];
   mailProblem: boolean;
+  oifu?: OifuView;
 };
 
 export type TeamRow = {
@@ -88,4 +122,5 @@ export type SettingsPayload = {
   cached: number;
   missing: number;
   mailFailures: { pickNumber: number; error: string }[];
+  owned: number;
 };

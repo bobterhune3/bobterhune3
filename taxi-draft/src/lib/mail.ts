@@ -38,6 +38,41 @@ export function messageFor(slot: Slot, history: PickRow[], pageUrl: string, reci
   return { subject, text: lines.join("\n") };
 }
 
+export function oifuPageUrl(): string {
+  return `${draftPageUrl()}oifu`;
+}
+
+export function oifuNotice(input: {
+  recipient: string;
+  subject: string;
+  headline: string;
+  turn: string;
+  detail: string;
+  pageUrl: string;
+  listTitle: string;
+  lines: string[];
+}): { subject: string; text: string } {
+  const text = [
+    `${firstName(input.recipient)},`,
+    "",
+    ...(input.headline ? [input.headline, ""] : []),
+    ...(input.turn ? [input.turn] : []),
+    ...(input.detail ? [input.detail] : []),
+    "",
+    "To access draft go here...",
+    input.pageUrl,
+    ...(input.listTitle ? ["", input.listTitle, ...input.lines] : []),
+  ].join("\n");
+  return { subject: input.subject, text };
+}
+
+export function oifuFinal(recipient: string, pageUrl: string, lines: string[]): { subject: string; text: string } {
+  return {
+    subject: "The OIFU draft is over",
+    text: [`${firstName(recipient)},`, "", "The OIFU draft is over.", "", "To access draft go here...", pageUrl, "", "Picks", ...lines].join("\n"),
+  };
+}
+
 export function onePerManager(rows: { manager: string; email: string }[]): { manager: string; email: string }[] {
   const seenManagers = new Set<string>();
   const seenEmails = new Set<string>();

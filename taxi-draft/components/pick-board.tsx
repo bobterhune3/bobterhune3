@@ -49,7 +49,7 @@ function Head({ mlbid, name }: { mlbid: string; name: string }) {
   return <img className="head" alt="" draggable={false} src={headshotUrl(mlbid)} onError={(event) => { event.currentTarget.replaceWith(Object.assign(document.createElement("div"), { className: "head", textContent: letters })); }} />;
 }
 
-export function PickBoard({ initial, kind = "taxi" }: { initial: Board; kind?: "taxi" | "oifu" }) {
+export function PickBoard({ initial, kind = "taxi", onSwitch }: { initial: Board; kind?: "taxi" | "oifu"; onSwitch?: (board: Board) => void }) {
   const [board, setBoard] = useState(initial);
   const [filter, setFilter] = useState(initial.filter || "All");
   const [q, setQ] = useState("");
@@ -69,6 +69,7 @@ export function PickBoard({ initial, kind = "taxi" }: { initial: Board; kind?: "
     if (!response.ok) return;
     const data = (await response.json()) as Board;
     setBoard(data);
+    if (kind === "oifu" && data.oifu && data.oifu.phase !== "pick") onSwitch?.(data);
     setPage(data.page);
     setSelected((current) => (current && data.picks.some((pick) => pick.mlbid === current.mlbid) ? null : current));
   }
@@ -88,10 +89,10 @@ export function PickBoard({ initial, kind = "taxi" }: { initial: Board; kind?: "
     if (!selected) return;
     setBusy(true);
     setError("");
-    const response = await fetch("/api/pick", {
+    const response = await fetch(kind === "oifu" ? "/api/oifu" : "/api/pick", {
       method: "POST",
       headers: { "content-type": "application/json", "x-draft-passphrase": passphrase },
-      body: JSON.stringify({ mlbid: selected.mlbid, passphrase }),
+      body: JSON.stringify(kind === "oifu" ? { action: "pick", mlbid: selected.mlbid, passphrase } : { mlbid: selected.mlbid, passphrase }),
     });
     const data = (await response.json().catch(() => ({}))) as { error?: string; mailError?: string };
     setBusy(false);
@@ -140,7 +141,7 @@ export function PickBoard({ initial, kind = "taxi" }: { initial: Board; kind?: "
                   {clock.abbr ? <TeamLogo abbr={clock.abbr} name={clock.team} /> : null}
                   <h1>{clock.manager}, {clock.team}</h1>
                 </div>
-                <p className="next-line">{clock.endsAfter ? "The draft ends after this pick." : `Next pick, ${clock.nextManager}, ${clock.nextTeam}`}</p>
+                <p className="next-line">{clock.endsAfter ? (kind === "oifu" ? "Declaring starts again after this pick." : "The draft ends after this pick.") : clock.nextTeam ? `Next pick, ${clock.nextManager}, ${clock.nextTeam}` : ""}</p>
               </div>
               <div className="meta">
                 <p className="round">Round {clock.round}, Pick {clock.pick}</p>
@@ -151,7 +152,7 @@ export function PickBoard({ initial, kind = "taxi" }: { initial: Board; kind?: "
           )}
         </div>
       </header>
-      {board.mailProblem ? <p className="banner">A pick is saved, and its email did not go out. Retry it from Settings.</p> : null}
+      {board.mailProblem ? <p className="banner">{kind === "oifu" ? "A turn is saved, and its email did not go out." : "A pick is saved, and its email did not go out. Retry it from Settings."}</p> : null}
       <main className="board">
         <section className="panel" aria-label="Make a pick">
           <div className="panel-head"><h2>Make a pick</h2></div>
@@ -201,7 +202,7 @@ export function PickBoard({ initial, kind = "taxi" }: { initial: Board; kind?: "
               <li>Press Pick.</li>
               <li>Confirm the team, manager, and player.</li>
             </ol>
-            <p className="fine">{kind === "oifu" ? "This board matches the Taxi Squad page. OIFU pick rules come next." : "Confirm saves the pick. Each manager gets one email when Gmail is configured."}</p>
+            <p className="fine">{kind === "oifu" ? "This list is the players dropped into the OIFU pool. A player picked here is off the Taxi Squad board too." : "Confirm saves the pick. Each manager gets one email when Gmail is configured."}</p>
           </div>
         </section>
         <section className="panel" aria-label="Available players">

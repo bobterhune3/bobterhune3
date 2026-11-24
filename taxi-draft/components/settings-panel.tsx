@@ -103,6 +103,7 @@ export function SettingsPanel() {
     try {
       await call("/api/settings", passphrase, { passphrase, ...settings, teams: settings.teams });
       if (settings.active === "oifu") {
+        await call("/api/oifu", passphrase, { passphrase, action: "start" });
         window.location.assign("/oifu");
         return;
       }
@@ -115,7 +116,7 @@ export function SettingsPanel() {
   }
 
   async function reset() {
-    if (!window.confirm("Reset the draft? Every player becomes available and no team keeps a pick.")) return;
+    if (!window.confirm("Reset the draft? Taxi picks and the whole OIFU draft are cleared. Every player is available again.")) return;
     setError("");
     setMessage("");
     try {
@@ -163,7 +164,8 @@ export function SettingsPanel() {
                 <label className="search">American rounds<input disabled={settings.frozen} value={settings.roundsAmerican} onChange={(event) => setSettings({ ...settings, roundsAmerican: Number(event.target.value) })} /></label>
                 <label className="search">Federal rounds<input disabled={settings.frozen} value={settings.roundsFederal} onChange={(event) => setSettings({ ...settings, roundsFederal: Number(event.target.value) })} /></label>
               </div>
-              <p className="hint">Choose Taxi Squad or OIFU, then start. Reset clears every pick. Teams, emails, and the player pool stay.</p>
+              <p className="hint">Choose Taxi Squad or OIFU, then start. Reset clears Taxi picks and the OIFU draft. Teams, emails, and the player pool stay.</p>
+              <p className="hint">{settings.owned > 0 ? `Team rosters loaded: ${settings.owned} players.` : "Team rosters are not loaded. Upload the NoDice roster so a team can drop its own players."}</p>
               {settings.frozen ? <p className="hint">Order, leagues, and round caps are frozen after pick 1.</p> : null}
               <p className="hint">Stats cache: {settings.cached} cached, {settings.missing} missing.</p>
               <div className="dialog-actions">

@@ -151,6 +151,11 @@ input[type="checkbox"], input[type="file"] { width: auto; padding: 0; background
 .manager-row { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 8px; align-items: center; margin-top: 8px; }
 .rounds { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .mail-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+.check-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.check-row input { width: 16px; height: 16px; flex: none; }
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.composer-body .dialog-actions { flex-wrap: wrap; justify-content: flex-start; }
+.rail-list.rail-scroll, .rail-scroll { max-height: 180px; overflow: auto; }
 @media (min-width: 901px) {
   .app { height: 100vh; overflow: hidden; }
   .rail summary { pointer-events: none; }

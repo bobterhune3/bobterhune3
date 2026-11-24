@@ -14,6 +14,21 @@ export type RosterPlayer = {
   bats: Bats;
 };
 
+export type OwnedPlayer = {
+  team: string;
+  mlbid: string;
+  first: string;
+  last: string;
+  kind: "P" | "PP";
+  sortCode: string;
+  bats: "L" | "R" | "S";
+};
+
+const TEAM_CODES = new Set([
+  "ANM", "AZB", "ATM", "BLN", "BSM", "CHB", "CLM", "DTB", "HSN", "KCM", "LAN", "MLG",
+  "MNB", "NYB", "PHN", "PTN", "SDG", "SFN", "SEG", "SLB", "TBM", "TXG", "TOG", "WSG",
+]);
+
 export function batsFromMark(mark: string): Bats {
   const value = mark.trim();
   if (value === "*") return "L";
@@ -65,10 +80,20 @@ function headerIndex(header: string[], pattern: RegExp): number {
 }
 
 export function playersFromCsv(text: string): RosterPlayer[] {
+  return readRoster(text).pool;
+}
+
+export function ownedFromCsv(text: string): OwnedPlayer[] {
+  return readRoster(text).owned;
+}
+
+export function readRoster(text: string): { pool: RosterPlayer[]; owned: OwnedPlayer[] } {
   const rows = parseCsv(text).filter((row) => row.some((cell) => cell.trim() !== ""));
   let header: string[] | null = null;
-  const players: RosterPlayer[] = [];
+  const pool: RosterPlayer[] = [];
+  const owned: OwnedPlayer[] = [];
   const seen = new Set<string>();
+  const ownedSeen = new Set<string>();
   for (const row of rows) {
     const cells = row.map((cell) => cell.trim());
     const looksLikeHeader = cells[0]?.toLowerCase() === "kind" || (cells.some((cell) => /^name$/i.test(cell)) && cells.some((cell) => /mlbid|mlb id/i.test(cell)));
@@ -117,12 +142,26 @@ export function playersFromCsv(text: string): RosterPlayer[] {
       if (wide) bats = batsFromMark(cells[4] ?? "");
     } else continue;
     if ((kind !== "P" && kind !== "PP") || !/^\d+$/.test(mlbid)) continue;
+    const { first, last } = splitName(name);
+    if (!last || last === "AA" || last === "ZZZ") continue;
+    if (TEAM_CODES.has(code)) {
+      if (ownedSeen.has(`${code}:${mlbid}`)) continue;
+      ownedSeen.add(`${code}:${mlbid}`);
+      owned.push({
+        team: code,
+        mlbid,
+        first,
+        last,
+        kind,
+        sortCode,
+        bats: bats === "L" || bats === "S" || bats === "R" ? bats : "R",
+      });
+      continue;
+    }
     if (!code || "MBGN".includes(code.slice(-1))) continue;
     if (seen.has(mlbid)) continue;
     seen.add(mlbid);
-    const { first, last } = splitName(name);
-    if (!last || last === "AA" || last === "ZZZ") continue;
-    players.push({
+    pool.push({
       mlbid,
       first,
       last,
@@ -136,7 +175,7 @@ export function playersFromCsv(text: string): RosterPlayer[] {
       bats,
     });
   }
-  return players;
+  return { pool, owned };
 }
 
 export function decodeRoster(buf: Buffer): string {
